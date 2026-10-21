@@ -1,0 +1,6 @@
+node_modules/
+# Local runs write reports here only if pointed at it; reports never belong in
+# this public repository (they name private repositories and open vulnerabilities).
+out/
+*.sarif
+trivy*.json

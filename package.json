@@ -1,0 +1,17 @@
+{
+  "name": "repo-guard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Weekly dependency and supply-chain check across every repository of one GitHub owner",
+  "scripts": {
+    "test": "node --test",
+    "guard": "node src/guard.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
+  }
+}
