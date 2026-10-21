@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { classify } from '../src/status.mjs';
 
 const base = {
-  hasManifests: true, hasCi: true, securityYml: 'trivy.yml@sha1', hasDependabotYml: true,
+  hasManifests: true, hasCi: true, securityYml: 'uses: kryadov/repo-guard/.github/workflows/trivy.yml@sha1', hasDependabotYml: true,
   alerts: [], dependabotPrs: [], lastTrivyRun: 'success', findings: [],
 };
 const run = (over, ref = 'sha1') => classify({ ...base, ...over }, { trivyRef: ref });
@@ -76,4 +76,11 @@ test('a repository without CI is never asked to add workflows', () => {
 test('security.yml pinned to an older repo-guard release is stale; no release skips the check', () => {
   assert.deepEqual(run({}, 'sha2').onboarding, ['security.yml:stale']);
   assert.deepEqual(run({}, null).onboarding, []);
+});
+
+test('a security.yml that is not a repo-guard call is never stale', () => {
+  // repo-guard's own file calls trivy.yml by local path; a hand-written one might
+  // run CodeQL. Neither pins a release, so neither can be behind one.
+  assert.deepEqual(run({ securityYml: 'uses: ./.github/workflows/trivy.yml' }, 'sha2').onboarding, []);
+  assert.deepEqual(run({ securityYml: 'uses: github/codeql-action/analyze@x' }, 'sha2').onboarding, []);
 });

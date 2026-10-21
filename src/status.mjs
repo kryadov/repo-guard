@@ -6,6 +6,7 @@
 // Dependabot's own weekly PRs.
 
 const SERIOUS = new Set(['critical', 'high']);
+const REUSABLE = 'kryadov/repo-guard/.github/workflows/trivy.yml';
 
 export function classify(s, { trivyRef }) {
   const onboarding = [];
@@ -14,7 +15,11 @@ export function classify(s, { trivyRef }) {
   // commits and needs only alerts.
   if (s.hasCi) {
     if (!s.securityYml) onboarding.push('security.yml');
-    else if (trivyRef && !s.securityYml.includes(trivyRef)) onboarding.push('security.yml:stale');
+    // Only a repo-guard call pins a release and can fall behind one; a
+    // hand-written security.yml is its owner's business.
+    else if (trivyRef && s.securityYml.includes(REUSABLE) && !s.securityYml.includes(`${REUSABLE}@${trivyRef}`)) {
+      onboarding.push('security.yml:stale');
+    }
     if (!s.hasDependabotYml) onboarding.push('dependabot.yml');
   }
 
