@@ -1,0 +1,46 @@
+# The weekly pass over every repository. It holds REPO_GUARD_TOKEN, which can
+# write to all of them, so it runs only on a schedule or by hand: never on push
+# or pull_request, which in a public repository would hand that token to a fork.
+# test/workflows.test.mjs enforces this.
+name: guard
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: guard
+  cancel-in-progress: false
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # contents: write is for the keepalive commit below, with GITHUB_TOKEN, to
+    # this repository only.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Guard
+        run: node src/guard.mjs --publish
+        env:
+          REPO_GUARD_TOKEN: ${{ secrets.REPO_GUARD_TOKEN }}
+          REPO_GUARD_TOKEN_EXPIRES: ${{ vars.REPO_GUARD_TOKEN_EXPIRES }}
+          ONBOARD: ${{ vars.ONBOARD }}
+      # GitHub disables schedules in a public repository after 60 days without
+      # activity, and a run is not activity. A commit is.
+      - name: Keep the schedule alive
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -gt $(( 45 * 86400 )) ]; then
+            date -u +%F > .last-run
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .last-run
+            git commit -m "Keep the weekly schedule alive"
+            git push
+          fi

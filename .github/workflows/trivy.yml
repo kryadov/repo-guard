@@ -1,0 +1,73 @@
+# Reusable Trivy scan, called from every repository's security.yml.
+#
+# The log shows counts only. A findings table in a public repository's log would
+# be a list of its open vulnerabilities, readable by anyone, so results go to
+# files: SARIF to code scanning in public repositories, an artifact in private
+# ones (code scanning there needs GitHub Advanced Security).
+name: trivy
+on:
+  workflow_call:
+    inputs:
+      severity:
+        type: string
+        default: "CRITICAL,HIGH"
+      scan-ref:
+        type: string
+        default: "."
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Report
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.75.0
+          scan-type: fs
+          scan-ref: ${{ inputs.scan-ref }}
+          scanners: vuln,secret
+          severity: ${{ inputs.severity }}
+          limit-severities-for-sarif: true
+          ignore-unfixed: true
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0"
+      # A fork's pull request gets a read-only token, so the upload would fail.
+      - name: Upload to code scanning
+        if: ${{ !github.event.repository.private && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy.sarif
+          category: trivy
+      - name: Keep the report as an artifact
+        if: ${{ github.event.repository.private }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-sarif
+          path: trivy.sarif
+          retention-days: 30
+      - name: Gate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          scan-type: fs
+          scan-ref: ${{ inputs.scan-ref }}
+          scanners: vuln,secret
+          severity: ${{ inputs.severity }}
+          ignore-unfixed: true
+          format: json
+          output: trivy.json
+          exit-code: "1"
+      - name: Counts
+        if: ${{ always() }}
+        run: |
+          [ -f trivy.json ] || exit 0
+          jq -r '[.Results[]? | (.Vulnerabilities[]?, .Secrets[]?) | .Severity] | group_by(.) | map("\(.[0]): \(length)") | join(", ") | if . == "" then "no findings" else . end' trivy.json

@@ -1,0 +1,17 @@
+# repo-guard scans itself with its own reusable workflow, by local path.
+name: security
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trivy:
+    uses: ./.github/workflows/trivy.yml
+    permissions:
+      contents: read
+      security-events: write
