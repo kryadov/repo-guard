@@ -44,6 +44,11 @@ export function renderDependabot(ecosystems) {
     '    schedule:',
     '      interval: "weekly"',
     '    open-pull-requests-limit: 5',
+    // Version updates only; security updates are exempt and still arrive at once.
+    // A release is proposed after two weeks, by which time a poisoned one has
+    // usually been noticed and pulled.
+    '    cooldown:',
+    '      default-days: 14',
     '    groups:',
     '      minor-and-patch:',
     '        update-types: ["minor", "patch"]',

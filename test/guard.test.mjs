@@ -14,6 +14,8 @@ const routes = {
   'GET /repos/kryadov/repo-guard/git/ref/tags/v1.0.0': { body: { object: { type: 'tag', sha: 'tagobj' } } },
   'GET /repos/kryadov/repo-guard/git/tags/tagobj': { body: { object: { sha: 'c'.repeat(40) } } },
   'GET /user/repos?affiliation=owner&per_page=100': { body: repos },
+  'GET /repos/kryadov/good/commits?sha=main&per_page=1': { body: [{ commit: { committer: { date: '2026-10-20T00:00:00Z' } } }] },
+  'GET /repos/kryadov/broken/commits?sha=main&per_page=1': { body: [{ commit: { committer: { date: '2026-10-10T00:00:00Z' } } }] },
   'GET /repos/kryadov/good/git/trees/main?recursive=1': { body: { tree: [{ path: 'README.md', type: 'blob' }] } },
   'GET /repos/kryadov/good/dependabot/alerts?state=open&per_page=100': { body: [] },
   'GET /repos/kryadov/good/pulls?state=open&per_page=100': { body: [] },

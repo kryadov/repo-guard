@@ -38,7 +38,7 @@ test('cron is stable per repository and spread between repositories', () => {
   assert.match(cronFor('alpha'), /^\d{1,2} \d{1,2} \* \* 1$/);
 });
 
-const repo = { name: 'r', fullName: 'o/r', private: false, pushedAt: null, defaultBranch: 'main' };
+const repo = { name: 'r', fullName: 'o/r', private: false, lastCommitAt: null, defaultBranch: 'main' };
 
 test('an onboarding PR is opened from a fresh branch', async () => {
   const fetch = fakeGithub({
@@ -72,4 +72,11 @@ test('a closed, unmerged onboarding PR is a decline: nothing is reopened or writ
   const out = await openOnboardingPr(createClient({ token: 't', fetch }), repo, { files: [{ path: 'x', content: 'y' }] });
   assert.deepEqual(out, { url: 'https://github.com/o/r/pull/4', existing: true, declined: true });
   assert.ok(fetch.calls.every((c) => c.method === 'GET'));
+});
+
+test('version updates wait two weeks; a fresh release is not proposed the day it ships', () => {
+  // Tags of a popular action were force-pushed in March 2026; a cooldown keeps a
+  // poisoned release out until the ecosystem has had time to notice.
+  const doc = parse(renderDependabot([{ ecosystem: 'npm', directory: '/' }]));
+  assert.deepEqual(doc.updates[0].cooldown, { 'default-days': 14 });
 });

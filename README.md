@@ -14,7 +14,8 @@ repositories and keeps finding the next ones.
 Once a week, and on demand:
 
 1. **Inventory** — every repository the owner owns, minus forks and archived ones,
-   newest push first.
+   ordered by the last commit on the default branch (not by the last push: a
+   Dependabot branch would make every repository look active today).
 2. **Signals**, read through the API without cloning: open Dependabot alerts and
    whether Dependabot already has a PR for them; whether `security.yml` and
    `dependabot.yml` are in place; the last Trivy run; and **checks** — small
@@ -40,6 +41,14 @@ This repository is public. The report names private repositories and lists
 vulnerabilities that are not fixed yet — a map for anyone looking for one. So the
 report goes only to a private repository (`REPORT_REPO`), and everything that
 reaches this repository's logs is a count: never a name, never a finding.
+
+## Onboarded files
+
+`dependabot.yml` groups minor and patch updates into one weekly PR and waits
+14 days before proposing a new version (`cooldown`): in March 2026 the tags of a
+popular action were force-pushed to a poisoned commit, and a release that has been
+out for two weeks has usually been checked by someone. Security updates are not
+delayed.
 
 ## Using the Trivy workflow from another repository
 

@@ -22,11 +22,11 @@ export function renderReport(rows, { date, warnings = [] }) {
   lines.push(ORDER.filter((h) => counts[h]).map((h) => `**${h}** ${counts[h]}`).join(' · ')
     + ` · **onboarding** ${counts.onboarding}`, '');
 
-  lines.push('| # | Repository | Last push | Health | Onboarding | Reasons |', '|---|---|---|---|---|---|');
+  lines.push('| # | Repository | Last commit | Health | Onboarding | Reasons |', '|---|---|---|---|---|---|');
   rows.forEach((r, i) => {
     const name = r.repo.private ? `${r.repo.name} 🔒` : r.repo.name;
     const onboarding = [...r.onboarding, ...(r.onboardingPr ? [r.onboardingPr] : [])].join(', ');
-    lines.push(`| ${i + 1} | ${name} | ${r.repo.pushedAt?.slice(0, 10) ?? '—'} | ${r.health} | ${onboarding} | ${r.reasons.join('; ')} |`);
+    lines.push(`| ${i + 1} | ${name} | ${r.repo.lastCommitAt?.slice(0, 10) ?? '—'} | ${r.health} | ${onboarding} | ${r.reasons.join('; ')} |`);
   });
 
   const queue = rows.filter((r) => r.health === 'needs-fix');

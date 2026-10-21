@@ -5,7 +5,7 @@ import { createClient } from '../src/github.mjs';
 import { fakeGithub } from './fake-github.mjs';
 
 const row = (name, health, extra = {}) => ({
-  repo: { name, fullName: `o/${name}`, private: name.startsWith('p'), pushedAt: '2026-10-01T00:00:00Z', defaultBranch: 'main' },
+  repo: { name, fullName: `o/${name}`, private: name.startsWith('p'), lastCommitAt: '2026-10-01T00:00:00Z', defaultBranch: 'main' },
   health, onboarding: [], reasons: [], findings: [], ...extra,
 });
 
@@ -46,4 +46,10 @@ test('publishReport writes both files', async () => {
 test('publishReport fails loudly when the report repository refuses the write', async () => {
   const fetch = fakeGithub({ 'PUT /repos/kryadov/site-docs/contents/security/2026-10-22/report.md': { status: 403, body: {} } });
   await assert.rejects(publishReport(createClient({ token: 't', fetch }), { repo: 'kryadov/site-docs', date: '2026-10-22', markdown: '#', json: '{}' }), /403/);
+});
+
+test('the report shows the last commit date', () => {
+  const md = renderReport([row('a', 'ok')], { date: '2026-10-22' });
+  assert.match(md, /\| # \| Repository \| Last commit \|/);
+  assert.match(md, /\| 1 \| a \| 2026-10-01 \|/);
 });

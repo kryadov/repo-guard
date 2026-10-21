@@ -4,7 +4,7 @@ import { createClient } from '../src/github.mjs';
 import { collectSignals } from '../src/signals.mjs';
 import { fakeGithub } from './fake-github.mjs';
 
-const repo = { name: 'r', fullName: 'o/r', private: false, pushedAt: '2026-10-01T00:00:00Z', defaultBranch: 'main' };
+const repo = { name: 'r', fullName: 'o/r', private: false, lastCommitAt: '2026-10-01T00:00:00Z', defaultBranch: 'main' };
 const tree = (...paths) => ({ body: { tree: paths.map((path) => ({ path, type: 'blob' })) } });
 
 test('collects every signal for a protected Python repository', async () => {
