@@ -45,9 +45,11 @@ reaches this repository's logs is a count: never a name, never a finding.
 ## Onboarded files
 
 `dependabot.yml` groups minor and patch updates into one weekly PR and waits
-14 days before proposing a new version (`cooldown`): in March 2026 the tags of a
-popular action were force-pushed to a poisoned commit, and a release that has been
-out for two weeks has usually been checked by someone. Security updates are not
+14 days before proposing a new version (`cooldown`): on 19–20 March 2026 almost every
+version tag of `aquasecurity/trivy-action` was force-pushed to a commit that stole
+CI secrets ([CVE-2026-33634](https://www.cve.org/CVERecord?id=CVE-2026-33634)), and it took about twelve hours to
+notice. A release that has been out for two weeks has usually been checked by
+someone. The same incident is why every action here is pinned to a commit SHA. Security updates are not
 delayed.
 
 ## Using the Trivy workflow from another repository

@@ -75,7 +75,7 @@ test('a closed, unmerged onboarding PR is a decline: nothing is reopened or writ
 });
 
 test('version updates wait two weeks; a fresh release is not proposed the day it ships', () => {
-  // Tags of a popular action were force-pushed in March 2026; a cooldown keeps a
+  // trivy-action's tags were force-pushed in March 2026 (CVE-2026-33634); a cooldown keeps a
   // poisoned release out until the ecosystem has had time to notice.
   const doc = parse(renderDependabot([{ ecosystem: 'npm', directory: '/' }]));
   assert.deepEqual(doc.updates[0].cooldown, { 'default-days': 14 });
