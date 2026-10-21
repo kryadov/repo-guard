@@ -88,3 +88,34 @@ test('paths cover every file the check reads', () => {
   }
   assert.ok(!paths.some((re) => re.test('node_modules/x/package.json')));
 });
+
+test('engines caret and tilde ranges are not pins; only an end-of-life major is flagged', () => {
+  assert.deepEqual(fixes({ 'package.json': JSON.stringify({ engines: { node: '^24.0.0' } }) }), []);
+  assert.deepEqual(fixes({ 'package.json': JSON.stringify({ engines: { node: '~22.1.0' } }) }), []);
+  assert.equal(fixes({ 'package.json': JSON.stringify({ engines: { node: '^18.0.0' } }) }).length, 1);
+});
+
+test('a certifi pin inside a one-line PEP 621 list counts', () => {
+  assert.deepEqual(fixes({ 'pyproject.toml': 'dependencies = ["httpx", "certifi>=2026.10.19"]\n' }), []);
+  assert.equal(fixes({ 'pyproject.toml': 'dependencies = ["httpx", "certifi==2024.2.2"]\n' }).length, 1);
+});
+
+test('HTTP clients are recognised only as dependencies, not as words or stub packages', () => {
+  assert.deepEqual(fixes({ 'pyproject.toml': '[project]\ndescription = "Answers user requests"\ndependencies = ["rich"]\n' }), []);
+  assert.deepEqual(fixes({ 'requirements-dev.txt': 'types-requests==2.32\n' }), []);
+  assert.equal(fixes({ 'pyproject.toml': '[tool.poetry.dependencies]\nrequests = "^2.31"\n' }).length, 1);
+  assert.equal(fixes({ 'pyproject.toml': 'dependencies = [\n  "httpx>=0.27",\n]\n' }).length, 1);
+});
+
+test('odd Node majors below the newest known line are end-of-life', () => {
+  assert.equal(fixes({ '.nvmrc': '23.1.0' }).length, 1);
+  assert.equal(fixes({ '.nvmrc': '25' }).length, 1);
+  assert.deepEqual(fixes({ '.nvmrc': '27' }), []);
+});
+
+test('LTS codenames resolve to their majors', () => {
+  assert.equal(fixes({ '.nvmrc': 'lts/iron' }).length, 1);
+  assert.equal(fixes({ '.nvmrc': 'lts/hydrogen\n' }).length, 1);
+  assert.deepEqual(fixes({ '.nvmrc': 'lts/jod' }), []);
+  assert.deepEqual(fixes({ '.nvmrc': 'lts/*' }), []);
+});

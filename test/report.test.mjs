@@ -42,3 +42,8 @@ test('publishReport writes both files', async () => {
   await publishReport(createClient({ token: 't', fetch }), { repo: 'kryadov/site-docs', date: '2026-10-22', markdown: '#', json: '{}' });
   assert.equal(fetch.calls.filter((c) => c.method === 'PUT').length, 2);
 });
+
+test('publishReport fails loudly when the report repository refuses the write', async () => {
+  const fetch = fakeGithub({ 'PUT /repos/kryadov/site-docs/contents/security/2026-10-22/report.md': { status: 403, body: {} } });
+  await assert.rejects(publishReport(createClient({ token: 't', fetch }), { repo: 'kryadov/site-docs', date: '2026-10-22', markdown: '#', json: '{}' }), /403/);
+});

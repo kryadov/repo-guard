@@ -45,3 +45,13 @@ test('the guard job is the only one that can write, and only to this repository'
   assert.deepEqual(guard.permissions, { contents: 'read' });
   assert.deepEqual(guard.jobs.guard.permissions, { contents: 'write' });
 });
+
+test('trivy.yml decides visibility without github.event.repository', async () => {
+  // A scheduled run's event carries no repository object, so a condition on it
+  // would treat every private repository as public and fail the SARIF upload.
+  const text = await readFile(new URL('trivy.yml', dir), 'utf8');
+  assert.ok(!text.includes('github.event.repository'));
+  const conditions = steps(await load('trivy.yml')).map((s) => s.if ?? '');
+  assert.ok(conditions.some((c) => c.includes("steps.visibility.outputs.private == 'false'")));
+  assert.ok(conditions.some((c) => c.includes("steps.visibility.outputs.private == 'true'")));
+});

@@ -43,7 +43,8 @@ skipped (with reasons). Continue only when they say so.
    ```
    and `node <repo-guard>/src/check-local.mjs <repo>` for the eMudhra check.
    Expected: Trivy exit 0, no `fix` findings.
-5. **Deliver.** The row says whether the repository has CI and tests:
+5. **Deliver.** Decide from the clone (the report row does not carry it): CI means
+   any file in `.github/workflows/`; tests means the baseline in step 2 found some.
    - CI **and** tests → push the branch, `gh pr create`.
    - otherwise → fast-forward `main` from the branch and push.
    - `kryadov/kryadov.github.com` → always a PR, never merged here: its main deploys.

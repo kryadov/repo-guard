@@ -77,3 +77,20 @@ test('putFile omits sha for a new file', async () => {
   await c.putFile('o/r', 'x.md', 'hi', { message: 'm' });
   assert.equal(fetch.calls.find((x) => x.method === 'PUT').body.sha, undefined);
 });
+
+test('a refused write throws instead of passing for success', async () => {
+  const c = client({ 'PUT /repos/o/r/contents/x.md': { status: 403, body: { message: 'Resource not accessible' } } });
+  await assert.rejects(c.putFile('o/r', 'x.md', 'hi', { message: 'm' }), /PUT .*: 403/);
+  await assert.rejects(c.put('/repos/o/r/vulnerability-alerts'), /PUT .*: 404/);
+  await assert.rejects(c.post('/repos/o/r/git/refs', {}), /POST .*: 404/);
+});
+
+test('a secondary rate limit (403 with retry-after, quota left) throws', async () => {
+  const c = client({ 'GET /a': { status: 403, body: { message: 'You have exceeded a secondary rate limit' }, headers: { 'retry-after': '60', 'x-ratelimit-remaining': '4000' } } });
+  await assert.rejects(c.get('/a'), /rate limit/);
+});
+
+test('a secondary rate limit named only in the body throws', async () => {
+  const c = client({ 'GET /a': { status: 403, body: { message: 'You have exceeded a secondary rate limit.' } } });
+  await assert.rejects(c.get('/a'), /rate limit/);
+});

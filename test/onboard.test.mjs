@@ -42,7 +42,7 @@ const repo = { name: 'r', fullName: 'o/r', private: false, pushedAt: null, defau
 
 test('an onboarding PR is opened from a fresh branch', async () => {
   const fetch = fakeGithub({
-    'GET /repos/o/r/pulls?state=open&head=o%3Arepo-guard%2Fonboarding': { body: [] },
+    'GET /repos/o/r/pulls?state=all&head=o%3Arepo-guard%2Fonboarding': { body: [] },
     'GET /repos/o/r/git/ref/heads/main': { body: { object: { sha: 'base' } } },
     'POST /repos/o/r/git/refs': { status: 201, body: {} },
     'PUT /repos/o/r/contents/.github/dependabot.yml': { status: 201, body: {} },
@@ -56,9 +56,20 @@ test('an onboarding PR is opened from a fresh branch', async () => {
 
 test('an already open onboarding PR is returned and nothing is written', async () => {
   const fetch = fakeGithub({
-    'GET /repos/o/r/pulls?state=open&head=o%3Arepo-guard%2Fonboarding': { body: [{ html_url: 'https://github.com/o/r/pull/9' }] },
+    'GET /repos/o/r/pulls?state=all&head=o%3Arepo-guard%2Fonboarding': { body: [{ html_url: 'https://github.com/o/r/pull/9', state: 'open', merged_at: null }] },
   });
   const out = await openOnboardingPr(createClient({ token: 't', fetch }), repo, { files: [{ path: 'x', content: 'y' }] });
   assert.deepEqual(out, { url: 'https://github.com/o/r/pull/9', existing: true });
+  assert.ok(fetch.calls.every((c) => c.method === 'GET'));
+});
+
+test('a closed, unmerged onboarding PR is a decline: nothing is reopened or written', async () => {
+  const fetch = fakeGithub({
+    'GET /repos/o/r/pulls?state=all&head=o%3Arepo-guard%2Fonboarding': {
+      body: [{ html_url: 'https://github.com/o/r/pull/4', state: 'closed', merged_at: null }],
+    },
+  });
+  const out = await openOnboardingPr(createClient({ token: 't', fetch }), repo, { files: [{ path: 'x', content: 'y' }] });
+  assert.deepEqual(out, { url: 'https://github.com/o/r/pull/4', existing: true, declined: true });
   assert.ok(fetch.calls.every((c) => c.method === 'GET'));
 });

@@ -17,9 +17,18 @@ export const id = 'emudhra-2026-10';
 
 const CERTIFI_MIN = '2026.10.19';
 const NODE_FIXED = { 22: '22.23.4', 24: '24.22.1', 26: '26.12.1' };
-const NODE_OLDEST_SUPPORTED = 22;
+// Every line older than the newest fixed one and not in NODE_FIXED — odd majors
+// included — is end-of-life and got no fix.
+const NODE_NEWEST = Math.max(...Object.keys(NODE_FIXED).map(Number));
+const NODE_LTS = {
+  argon: 4, boron: 6, carbon: 8, dubnium: 10, erbium: 12, fermium: 14,
+  gallium: 16, hydrogen: 18, iron: 20, jod: 22, krypton: 24,
+};
 const GO_FIXED = { '1.26': '1.26.10', '1.27': '1.27.3' };
-const HTTP_CLIENTS = /\b(requests|httpx|aiohttp|urllib3|openai|anthropic|boto3|botocore|langchain[\w-]*|google-genai|tiktoken|huggingface[_-]hub)\b/i;
+// A dependency, not a word: the start of a requirements line or a Poetry key, or
+// a quoted PEP 621 entry. "Answers user requests" in a description is not one,
+// and neither is the stub package "types-requests".
+const HTTP_CLIENTS = /(?:^\s*|["'])(?:requests|httpx|aiohttp|urllib3|openai|anthropic|boto3|botocore|langchain[\w-]*|google-genai|tiktoken|huggingface[_-]hub)(?![\w-])/im;
 
 const NOT_VENDORED = '(?!.*(?:^|/)(?:node_modules|vendor|\\.venv|venv)/)';
 export const paths = [
@@ -58,7 +67,9 @@ function python(files) {
 
 function certifiVersions(path, text) {
   if (/requirements[^/]*\.txt$/.test(path) || path.endsWith('pyproject.toml')) {
-    return [...text.matchAll(/^\s*["']?certifi\s*(?:==|>=|~=)\s*([\d.]+)/gim)].map((m) => m[1]);
+    // Line start for requirements files, or any list position for a one-line
+    // PEP 621 `dependencies = ["httpx", "certifi>=…"]`.
+    return [...text.matchAll(/(?:^\s*|["'\s,[])certifi\s*(?:==|>=|~=)\s*([\d.]+)/gim)].map((m) => m[1]);
   }
   if (/(poetry|uv)\.lock$/.test(path)) {
     return [...text.matchAll(/name = "certifi"\s*\nversion = "([\d.]+)"/g)].map((m) => m[1]);
@@ -74,10 +85,13 @@ function certifiVersions(path, text) {
 // the next install, so only an end-of-life major is a finding; a full version is
 // compared with the fixed patch of its line.
 function nodeFinding(path, spec) {
-  const m = String(spec).trim().match(/^[v^~=]*(\d+)(?:\.(\d+|x))?(?:\.(\d+|x))?/);
+  let text = String(spec).trim();
+  const codename = text.match(/^lts\/([a-z]+)/i)?.[1]?.toLowerCase();
+  if (codename && NODE_LTS[codename]) text = String(NODE_LTS[codename]);
+  const m = text.match(/^[v^~=]*(\d+)(?:\.(\d+|x))?(?:\.(\d+|x))?/);
   if (!m) return null;
   const major = Number(m[1]);
-  if (major < NODE_OLDEST_SUPPORTED) {
+  if (!NODE_FIXED[major] && major < NODE_NEWEST) {
     return fix(path, `Node ${major} is end-of-life and got no eMudhra fix`, `move to Node ${NODE_FIXED[24]} or newer`);
   }
   const exact = m[3] !== undefined && m[3] !== 'x' && m[2] !== 'x';
@@ -95,8 +109,10 @@ function node(files) {
     if (/(^|\/)\.(nvmrc|node-version)$/.test(path)) specs.push(text);
     if (path.endsWith('package.json')) {
       const range = JSON.parse(text).engines?.node;
-      // ">=18" is a floor, not a pin: it does not hold anyone back on an old runtime.
-      if (range && !/^\s*>/.test(range)) specs.push(range);
+      // ">=18" is a floor, not a pin: it does not hold anyone back on an old
+      // runtime. "^24.0.0" and "~22.1.0" admit later patches, so only their
+      // major can be wrong.
+      if (range && !/^\s*>/.test(range)) specs.push(/^\s*[\^~]/.test(range) ? range.replace(/^\s*[\^~]/, '').split('.')[0] : range);
     }
     if (path.startsWith('.github/workflows/')) {
       for (const m of text.matchAll(/node-version:\s*['"]?([\w.]+)/g)) specs.push(m[1]);

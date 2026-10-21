@@ -83,8 +83,13 @@ export async function openOnboardingPr(client, repo, { files }) {
   const r = repo.fullName;
   const [owner] = r.split('/');
   const head = encodeURIComponent(`${owner}:${BRANCH}`);
-  const open = await client.get(`/repos/${r}/pulls?state=open&head=${head}`);
-  if (open.data?.length) return { url: open.data[0].html_url, existing: true };
+  // Closed PRs too: closing the onboarding PR is how the owner declines it, and
+  // the surviving branch must not bring it back every Monday.
+  const prs = (await client.get(`/repos/${r}/pulls?state=all&head=${head}`)).data ?? [];
+  const open = prs.find((p) => p.state === 'open');
+  if (open) return { url: open.html_url, existing: true };
+  const declined = prs.find((p) => p.state === 'closed' && !p.merged_at);
+  if (declined) return { url: declined.html_url, existing: true, declined: true };
 
   const base = await client.get(`/repos/${r}/git/ref/heads/${encodeURIComponent(repo.defaultBranch)}`);
   const branch = await client.get(`/repos/${r}/git/ref/heads/${BRANCH}`);

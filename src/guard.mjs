@@ -50,7 +50,10 @@ export async function run({ client, onboard, now = new Date(), tokenExpires }) {
           const paths = (tree.data?.tree ?? []).filter((e) => e.type === 'blob').map((e) => e.path);
           files.push({ path: '.github/dependabot.yml', content: renderDependabot(ecosystemsFor(paths)) });
         }
-        if (files.length) row.onboardingPr = (await openOnboardingPr(client, repo, { files })).url;
+        if (files.length) {
+          const pr = await openOnboardingPr(client, repo, { files });
+          row.onboardingPr = pr.declined ? `declined: ${pr.url}` : pr.url;
+        }
       }
       rows.push(row);
     } catch (err) {

@@ -1,8 +1,9 @@
-// A thin GitHub REST client. 404, 403 and 409 come back as values rather than
-// exceptions: "the file is absent", "Dependabot alerts are disabled" and "the
-// repository is empty" are ordinary answers here, and the status machine has to
-// see them. A rate limit also arrives as 403, though, and mistaking it for
+// A thin GitHub REST client. On reads, 404, 403 and 409 come back as values
+// rather than exceptions: "the file is absent", "Dependabot alerts are disabled"
+// and "the repository is empty" are ordinary answers here, and the status machine
+// has to see them. A rate limit also arrives as 403, though, and mistaking it for
 // "disabled" would quietly mark half the repositories unknown — so it throws.
+// Writes throw on any refusal.
 
 const API = 'https://api.github.com';
 const VALUE_STATUSES = new Set([403, 404, 409]);
@@ -20,10 +21,20 @@ export function createClient({ token, fetch = globalThis.fetch, baseUrl = API })
       },
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (res.status === 429 || (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0')) {
-      throw new Error(`${method} ${path}: GitHub rate limit exceeded`);
+    if (res.status === 429) throw new Error(`${method} ${path}: GitHub rate limit exceeded`);
+    if (res.status === 403) {
+      // The secondary limit answers 403 with quota still left, so the primary
+      // counter alone does not tell it apart from "disabled".
+      const text = await res.text();
+      if (res.headers.get('x-ratelimit-remaining') === '0' || res.headers.has('retry-after') || /rate limit/i.test(text)) {
+        throw new Error(`${method} ${path}: GitHub rate limit exceeded`);
+      }
+      if (method === 'GET') return { status: 403, data: null, next: null };
+      throw new Error(`${method} ${path}: 403 ${text}`);
     }
-    if (VALUE_STATUSES.has(res.status)) return { status: res.status, data: null, next: null };
+    // Only reads get absence as a value. A refused write that passed for success
+    // would leave a green run that published no report and enabled nothing.
+    if (method === 'GET' && VALUE_STATUSES.has(res.status)) return { status: res.status, data: null, next: null };
     if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${await res.text()}`);
     let data = null;
     if (res.status !== 204) data = raw ? await res.text() : await res.json();
