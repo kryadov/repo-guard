@@ -15,3 +15,12 @@ test('exits 1 on a fix-level finding and 0 once it is fixed', async () => {
   await writeFile(join(dir, 'requirements.txt'), 'certifi==2026.10.19\n');
   assert.equal(spawnSync(process.execPath, [script, dir]).status, 0);
 });
+
+test('reads UTF-16 files, as pip freeze writes them from PowerShell', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rg-'));
+  const utf16 = (text) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]);
+  await writeFile(join(dir, 'requirements.txt'), utf16('requests==2.32.3\r\ncertifi==2025.8.3\r\n'));
+  assert.equal(spawnSync(process.execPath, [script, dir]).status, 1);
+  await writeFile(join(dir, 'requirements.txt'), utf16('requests==2.32.3\r\ncertifi==2026.10.19\r\n'));
+  assert.equal(spawnSync(process.execPath, [script, dir]).status, 0);
+});
