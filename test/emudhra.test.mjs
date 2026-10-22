@@ -119,3 +119,15 @@ test('LTS codenames resolve to their majors', () => {
   assert.deepEqual(fixes({ '.nvmrc': 'lts/jod' }), []);
   assert.deepEqual(fixes({ '.nvmrc': 'lts/*' }), []);
 });
+
+test('a bare setup-node major without check-latest is reported for information', () => {
+  // The runner serves its cached patch, which can lag the fixed one for days:
+  // node-version: 22 ran 22.23.3 the day after 22.23.4 shipped.
+  const wf = (extra) => `      - uses: actions/setup-node@x\n        with:\n          node-version: 22\n${extra}`;
+  const out = run({ '.github/workflows/ci.yml': wf('') });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].level, 'info');
+  assert.match(out[0].fix, /check-latest: true/);
+  assert.deepEqual(run({ '.github/workflows/ci.yml': wf('          check-latest: true\n') }), []);
+  assert.deepEqual(run({ '.github/workflows/ci.yml': '          node-version: 24.22.1\n' }), []);
+});

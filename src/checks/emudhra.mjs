@@ -115,7 +115,14 @@ function node(files) {
       if (range && !/^\s*>/.test(range)) specs.push(/^\s*[\^~]/.test(range) ? range.replace(/^\s*[\^~]/, '').split('.')[0] : range);
     }
     if (path.startsWith('.github/workflows/')) {
-      for (const m of text.matchAll(/node-version:\s*['"]?([\w.]+)/g)) specs.push(m[1]);
+      const versions = [...text.matchAll(/node-version:\s*['"]?([\w.]+)/g)].map((m) => m[1]);
+      specs.push(...versions);
+      // A bare major does not float on a runner: setup-node serves the cached
+      // patch, which lagged the fixed one by days (22.23.3 the day after 22.23.4).
+      if (versions.some((v) => /^\d+(\.x)?$/.test(v)) && !/check-latest:\s*true/.test(text)) {
+        out.push(info(path, 'setup-node uses the runner\'s cached patch of a bare major',
+          'add check-latest: true next to node-version'));
+      }
     }
     if (/Dockerfile[^/]*$/.test(path)) {
       for (const m of text.matchAll(/^\s*FROM\s+(?:--\S+\s+)*(?:\S+\/)?node:([\w.]+)/gim)) specs.push(m[1]);
