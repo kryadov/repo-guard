@@ -18,21 +18,35 @@ const ECOSYSTEMS = [
   [/(^|\/)Dockerfile[^/]*$/, 'docker'],
 ];
 
+const directoryOf = (path) => {
+  const dir = posix.dirname(path);
+  return dir === '.' ? '/' : `/${dir}`;
+};
+const within = (dir, root) => root === '/' || dir === root || dir.startsWith(`${root}/`);
+
 export function ecosystemsFor(paths) {
+  paths = paths.filter((path) => !VENDORED.test(path));
   const found = new Map();
   for (const path of paths) {
-    if (VENDORED.test(path)) continue;
     for (const [re, ecosystem] of ECOSYSTEMS) {
       if (!re.test(path)) continue;
-      const dir = posix.dirname(path);
-      const directory = dir === '.' ? '/' : `/${dir}`;
+      const directory = directoryOf(path);
       found.set(`${ecosystem} ${directory}`, { ecosystem, directory });
     }
   }
   // uv reads pyproject.toml too; two ecosystems on one directory would open
-  // duplicate PRs.
+  // duplicate PRs. Below a uv.lock, a pyproject.toml is a workspace member
+  // locked by that file: pip would edit the member's pyproject and leave the
+  // lock stale, so every such PR would fail `uv sync --locked`.
+  const uvRoots = [...found.values()].filter((e) => e.ecosystem === 'uv').map((e) => e.directory);
+  const uvMembers = new Set(paths
+    .filter((path) => /(^|\/)pyproject\.toml$/.test(path))
+    .map(directoryOf)
+    .filter((dir) => uvRoots.some((root) => within(dir, root))));
   for (const { ecosystem, directory } of [...found.values()]) {
-    if (ecosystem === 'uv') found.delete(`pip ${directory}`);
+    if (ecosystem === 'pip' && (uvRoots.includes(directory) || uvMembers.has(directory))) {
+      found.delete(`pip ${directory}`);
+    }
   }
   return [...found.values(), { ecosystem: 'github-actions', directory: '/' }];
 }
@@ -50,8 +64,11 @@ export function renderDependabot(ecosystems) {
     '    cooldown:',
     '      default-days: 14',
     '    groups:',
-    '      minor-and-patch:',
-    '        update-types: ["minor", "patch"]',
+    // An action's major is usually just a newer Node runtime, so actions come
+    // as one PR; a package's major stays on its own, to be read.
+    ...(ecosystem === 'github-actions'
+      ? ['      actions:', '        patterns: ["*"]']
+      : ['      minor-and-patch:', '        update-types: ["minor", "patch"]']),
   ].join('\n'));
   return `${HEADER}version: 2\nupdates:\n${blocks.join('\n')}\n`;
 }
@@ -114,7 +131,7 @@ export async function openOnboardingPr(client, repo, { files }) {
       ...files.map((f) => `- \`${f.path}\``),
       '',
       '`security.yml` runs Trivy on every push, pull request and weekly; the build fails on CRITICAL/HIGH vulnerabilities that have a fix.',
-      '`dependabot.yml` opens weekly update PRs, minor and patch grouped into one.',
+      '`dependabot.yml` opens weekly update PRs, minor and patch grouped into one, GitHub Actions into another.',
       '',
       'Opened by [repo-guard](https://github.com/kryadov/repo-guard).',
     ].join('\n'),
