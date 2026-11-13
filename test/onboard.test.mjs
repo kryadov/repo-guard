@@ -15,6 +15,32 @@ test('ecosystems come from manifests, uv replaces pip in its directory, actions 
   ]);
 });
 
+test('a uv workspace is updated through its root lock, not per member with pip', () => {
+  assert.deepEqual(ecosystemsFor([
+    'pyproject.toml', 'uv.lock',
+    'apps/agent_api/pyproject.toml', 'packages/agent_runtime/pyproject.toml',
+    'tools/requirements.txt',
+  ]), [
+    { ecosystem: 'uv', directory: '/' },
+    { ecosystem: 'pip', directory: '/tools' },
+    { ecosystem: 'github-actions', directory: '/' },
+  ]);
+});
+
+test('a pyproject outside every uv lock keeps pip', () => {
+  assert.deepEqual(ecosystemsFor(['api/uv.lock', 'api/pyproject.toml', 'worker/pyproject.toml']), [
+    { ecosystem: 'uv', directory: '/api' },
+    { ecosystem: 'pip', directory: '/worker' },
+    { ecosystem: 'github-actions', directory: '/' },
+  ]);
+});
+
+test('github actions are grouped into one PR, majors included', () => {
+  const doc = parse(renderDependabot([{ ecosystem: 'npm', directory: '/' }, { ecosystem: 'github-actions', directory: '/' }]));
+  assert.deepEqual(doc.updates[0].groups, { 'minor-and-patch': { 'update-types': ['minor', 'patch'] } });
+  assert.deepEqual(doc.updates[1].groups, { actions: { patterns: ['*'] } });
+});
+
 test('dependabot.yml parses and groups minor and patch updates', () => {
   const doc = parse(renderDependabot([{ ecosystem: 'pip', directory: '/' }, { ecosystem: 'github-actions', directory: '/' }]));
   assert.equal(doc.version, 2);

@@ -44,7 +44,11 @@ reaches this repository's logs is a count: never a name, never a finding.
 
 ## Onboarded files
 
-`dependabot.yml` groups minor and patch updates into one weekly PR and waits
+`dependabot.yml` groups minor and patch updates into one weekly PR per manifest
+directory, and every GitHub Actions update, majors included, into another; a
+package's major version comes on its own. In a uv workspace the members'
+`pyproject.toml` files are left to the `uv` entry at the lock: a `pip` entry
+there would leave `uv.lock` stale and fail every `uv sync --locked`. It waits
 14 days before proposing a new version (`cooldown`): on 19–20 March 2026 almost every
 version tag of `aquasecurity/trivy-action` was force-pushed to a commit that stole
 CI secrets ([CVE-2026-33634](https://www.cve.org/CVERecord?id=CVE-2026-33634)), and it took about twelve hours to
